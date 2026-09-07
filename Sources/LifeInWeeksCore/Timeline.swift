@@ -25,17 +25,16 @@ public struct GridRow: Equatable, Sendable {
     public let calendarYear: Int
     /// Life-year index — the right half of the label.
     public let age: Int
+    /// Decade rows are drawn heavier. Which number counts as a decade depends
+    /// on the mode: the life year in Life Year, the calendar year in Calendar
+    /// Year — they don't line up, so "either one" would bold twice as many rows.
+    public let isDecade: Bool
 
     public var weekRange: Range<Int> { firstWeek ..< (firstWeek + count) }
     public var lastWeek: Int { firstWeek + count - 1 }
 
     /// `1996 · 18`
     public var label: String { "\(calendarYear) · \(age)" }
-
-    /// Decade rows are drawn heavier (README §4).
-    public var isDecade: Bool {
-        age % 10 == 0 || calendarYear % 10 == 0
-    }
 }
 
 /// The grouping of every week into rows, plus the reverse map needed for
@@ -47,6 +46,13 @@ public struct RowLayout: Sendable {
     public let positions: [(row: Int, column: Int)]
     /// Widest row, in cells — drives canvas width.
     public let widestRow: Int
+
+    /// The row's label. At the smallest zoom the 40px label column can't hold
+    /// `1996 · 18`, so it falls back to the one number the mode is about.
+    public func label(for row: GridRow, compact: Bool) -> String {
+        guard compact else { return row.label }
+        return mode == .life ? String(row.age) : String(row.calendarYear)
+    }
 
     public func position(of week: Int) -> (row: Int, column: Int)? {
         guard week >= 0, week < positions.count else { return nil }
@@ -145,7 +151,8 @@ public struct Timeline: Sendable {
                 firstWeek: week,
                 count: count,
                 calendarYear: monday(of: week).year,
-                age: rowIndex
+                age: rowIndex,
+                isDecade: rowIndex % 10 == 0
             ))
             week += count
             rowIndex += 1
@@ -176,7 +183,8 @@ public struct Timeline: Sendable {
                 firstWeek: week,
                 count: count,
                 calendarYear: year,
-                age: age(atWeek: week)
+                age: age(atWeek: week),
+                isDecade: year % 10 == 0
             ))
             week += count
             rowIndex += 1

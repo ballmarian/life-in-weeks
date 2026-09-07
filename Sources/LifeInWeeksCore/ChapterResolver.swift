@@ -72,6 +72,14 @@ public struct ChapterResolution: Sendable {
         return Int(coverCount[week])
     }
 
+    /// Index into `chapters` of the chapter whose colour fills this cell.
+    /// The grid asks this per cell, so it's a table lookup rather than a search.
+    public func backgroundChapterIndex(week: Int) -> Int? {
+        guard week >= 0, week < oldestIndex.count else { return nil }
+        let index = oldestIndex[week]
+        return index < 0 ? nil : Int(index)
+    }
+
     /// The chapter whose color fills this cell.
     public func backgroundChapter(week: Int) -> Chapter? {
         guard week >= 0, week < oldestIndex.count else { return nil }

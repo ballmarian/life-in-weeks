@@ -156,3 +156,30 @@ struct ChapterResolverTests {
         #expect(resolution.coveringCount(week: week("2014-01-06")) == 0)
     }
 }
+
+@Suite("Chapter lookups the grid uses per cell")
+struct ChapterIndexTests {
+
+    @Test("backgroundChapterIndex agrees with backgroundChapter")
+    func indexMatchesChapter() {
+        let broad = chapter("b1", "2012-01-02", "2018-12-31", "Twenties")
+        let narrow = chapter("b2", "2015-01-05", "2015-06-29", "Study Abroad")
+        let resolution = resolve([narrow, broad])
+
+        for iso in ["2011-12-26", "2013-01-07", "2015-03-02", "2020-01-06"] {
+            let index = week(iso)
+            let byIndex = resolution.backgroundChapterIndex(week: index)
+                .map { resolution.chapters[$0] }
+            #expect(byIndex == resolution.backgroundChapter(week: index), "\(iso)")
+        }
+    }
+
+    @Test("Out-of-range weeks return nothing rather than trapping")
+    func outOfRange() {
+        let resolution = resolve([chapter("b1", "2012-01-02", "2018-12-31", "Twenties")])
+        #expect(resolution.backgroundChapterIndex(week: -1) == nil)
+        #expect(resolution.backgroundChapterIndex(week: 999_999) == nil)
+        #expect(resolution.hoverChapter(week: -1) == nil)
+        #expect(resolution.coveringCount(week: 999_999) == 0)
+    }
+}

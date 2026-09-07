@@ -100,6 +100,20 @@ struct TimelineTests {
         #expect(layout.rows[18].age == 18)
         #expect(layout.rows[0].label == "1994 · 0")
         #expect(layout.rows[10].isDecade)
+        #expect(layout.rows[11].isDecade == false)
+        // The 40px label column can't hold "2004 · 10", so S falls back to the age.
+        #expect(layout.label(for: layout.rows[10], compact: true) == "10")
+        #expect(layout.label(for: layout.rows[10], compact: false) == layout.rows[10].label)
+    }
+
+    @Test("Calendar Year bolds calendar decades and compacts to the year")
+    func calendarYearLabels() {
+        let layout = worked.layout(mode: .calendar)
+        let row2000 = try! #require(layout.rows.first { $0.calendarYear == 2000 })
+        #expect(row2000.isDecade)
+        #expect(layout.label(for: row2000, compact: true) == "2000")
+        let row2001 = try! #require(layout.rows.first { $0.calendarYear == 2001 })
+        #expect(row2001.isDecade == false)
     }
 
     @Test("Life Year positions agree with the rows")

@@ -54,8 +54,7 @@ let package = Package(
         // SwiftUI app. Built into a .app bundle by Scripts/build-app.sh.
         .executableTarget(
             name: "LifeInWeeksApp",
-            dependencies: ["LifeInWeeksCore"],
-            swiftSettings: [.unsafeFlags(["-parse-as-library"])]
+            dependencies: ["LifeInWeeksCore"]
         ),
     ]
 )
