@@ -2,8 +2,6 @@
 
 A native macOS app that renders your life as a grid of weeks, from birth to age 90 — one row per year, one cell per week, based on Tim Urban's [Life in Weeks](https://waitbutwhy.com/2014/05/life-weeks.html) article. Each week can carry a markdown note and an emoji; arbitrary date ranges can be painted as colour-coded "chapters" behind the grid. Everything lives in plain, readable files on disk: no database, no server, no account, no analytics. A menu bar extra lets you log the current week without opening the map.
 
-![The map at default zoom](design-guidance/screenshots/01-grid-default-M-life-year.png)
-
 This app isn't distributed as a ready-made download — you build it yourself, on your own Mac, from this source code. That sounds intimidating if you've never done it before, but it's about ten minutes of copy-pasting a few commands into an app called Terminal. The steps below assume you've never used Terminal and walk through every click.
 
 ## What you'll need
@@ -191,8 +189,6 @@ works directly.
 - `Sources/LifeInWeeksApp` — SwiftUI: the map window, the `Canvas`-drawn grid,
   the menu bar scene, and the folder watcher.
 - `Tests/LifeInWeeksCoreTests` — the suite for the above.
-- `design-guidance/` — the product requirements and the design handoff this was
-  built from.
 
 ## Distribution
 
