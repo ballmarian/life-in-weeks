@@ -14,3 +14,6 @@ dist/
 
 # macOS
 .DS_Store
+
+# Design docs (kept local)
+design-guidance/
