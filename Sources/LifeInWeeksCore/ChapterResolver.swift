@@ -11,6 +11,11 @@ import Foundation
 /// With three or more overlapping, hover still surfaces just the newest; there
 /// is no stepped reveal in v1.
 public struct ChapterResolution: Sendable {
+    /// How many chapters may stack on one week. A cell splits between them —
+    /// diagonally for two, vertical bars beyond that — and past four the bars
+    /// are narrower than the note tick they have to sit behind (README §4).
+    public static let maxOverlap = 4
+
     /// Chapters sorted ascending by `start` — the order the grid and sidebar
     /// both reason about. Ties break on `id` so the result is deterministic.
     public let chapters: [Chapter]
@@ -67,6 +72,10 @@ public struct ChapterResolution: Sendable {
 
     public var isEmpty: Bool { chapters.isEmpty }
 
+    /// The most chapters covering any single week. Used to reject an edit
+    /// that would stack more than `maxOverlap` of them.
+    public var deepestOverlap: Int { Int(coverCount.max() ?? 0) }
+
     public func coveringCount(week: Int) -> Int {
         guard week >= 0, week < coverCount.count else { return 0 }
         return Int(coverCount[week])
@@ -99,6 +108,17 @@ public struct ChapterResolution: Sendable {
     /// covering chapter there is no extent-highlight (PRD §6.6).
     public func revealsNestedChapter(week: Int) -> Bool {
         coveringCount(week: week) >= 2
+    }
+
+    /// Every chapter covering the week, ascending by `start` — the order the
+    /// tooltip lists them in. Walks `weekSpans` rather than a per-week table:
+    /// only hover asks, and there are a handful of chapters.
+    public func coveringChapters(week: Int) -> [Chapter] {
+        guard week >= 0 else { return [] }
+        return weekSpans.indices.compactMap { position in
+            guard let span = weekSpans[position], span.contains(week) else { return nil }
+            return chapters[position]
+        }
     }
 
     public func span(of chapterID: String) -> ClosedRange<Int>? {

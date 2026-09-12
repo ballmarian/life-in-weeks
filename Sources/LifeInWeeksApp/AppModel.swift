@@ -56,7 +56,19 @@ final class AppModel: ObservableObject {
     @Published var selection: ClosedRange<Int>?
     @Published var isDragging = false
     @Published var selectedWeek: Int?
-    @Published var searchText = ""
+
+    // Search
+    @Published var searchText = "" {
+        didSet {
+            guard searchText != oldValue else { return }
+            runSearch()
+        }
+    }
+    @Published private(set) var searchResults: [NoteSearchResult] = []
+    /// True while the inspector is showing the result list rather than a week.
+    /// Editing the query always comes back to the list; opening a result, or
+    /// clicking a cell in the grid, leaves it for the week itself.
+    @Published private(set) var showingSearchResults = false
 
     // Week editing
     @Published var isEditing = false
@@ -69,6 +81,9 @@ final class AppModel: ObservableObject {
     @Published var draftColor = ChapterPalette.defaultColor
     /// Set when the popover is editing an existing chapter rather than making one.
     @Published var editingChapterID: String?
+    /// Set when the draft would stack chapters deeper than the grid can split a
+    /// cell; the sheet shows it and refuses to commit.
+    @Published var chapterDraftError: String?
 
     private var watcher: FileWatcher?
 
@@ -96,6 +111,29 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Rewrites `config.yaml` from the settings window, then reloads so the
+    /// timeline, layout and chapter spans are all rebuilt off the new facts.
+    func updateConfig(name: String, birthDate: CalendarDate, endAge: Int) {
+        guard let archive else { return }
+        do {
+            try archive.save(config: LifeConfig(name: name, birthDate: birthDate, endAge: endAge))
+            reload()
+        } catch {
+            loadError = error.localizedDescription
+        }
+    }
+
+    /// Points the app at a different storage folder. The current config seeds
+    /// it only if it has no `config.yaml` yet — an existing archive is adopted
+    /// as it stands, never overwritten.
+    func changeStorageRoot(to root: URL) {
+        guard root != archive?.paths.root else { return }
+        cancelEditing()
+        cancelChapterDraft()
+        selectedWeek = nil
+        adopt(root: root, seeding: config)
+    }
+
     private func open(root: URL) {
         let archive = Archive(paths: ArchivePaths(root: root))
         self.archive = archive
@@ -119,9 +157,12 @@ final class AppModel: ObservableObject {
             currentWeek = timeline.clampedWeekIndex(containing: today)
 
             indexNotes(snapshot.notes, timeline: timeline)
+            refreshSearchResults()
             rebuildLayout()
             rebuildResolution()
 
+            // `end_age` can shrink under an existing selection.
+            if let week = selectedWeek, week > timeline.lastWeekIndex { selectedWeek = nil }
             if selectedWeek == nil { selectedWeek = currentWeek }
             // An edit in flight owns the draft; a reload must not stomp on it.
             if !isEditing { syncDraftToSelection() }
@@ -144,6 +185,7 @@ final class AppModel: ObservableObject {
     private func reloadNotesOnly() {
         guard let archive, let timeline else { return }
         indexNotes(archive.loadNotes(), timeline: timeline)
+        refreshSearchResults()
         if !isEditing { syncDraftToSelection() }
         objectWillChange.send()
     }
@@ -169,6 +211,47 @@ final class AppModel: ObservableObject {
                                        openEnd: timeline.monday(of: currentWeek))
     }
 
+    // MARK: - Search
+
+    /// Whether a query is live — what puts the back bar above a week's note.
+    var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Re-runs the query over changed notes without pulling the user back to
+    /// the list — an edit to the open week shouldn't close it.
+    private func refreshSearchResults() {
+        guard isSearching else { return }
+        searchResults = NoteSearch.run(query: searchText, notes: notesByWeek)
+    }
+
+    private func runSearch() {
+        guard isSearching else {
+            searchResults = []
+            showingSearchResults = false
+            return
+        }
+        searchResults = NoteSearch.run(query: searchText, notes: notesByWeek)
+        showingSearchResults = true
+    }
+
+    /// Opens a match without disturbing the query, so Back returns to the same
+    /// list the result came from.
+    func openSearchResult(week: Int) {
+        select(week: week)
+    }
+
+    /// Goes back to the list. An edit in flight is left as it is rather than
+    /// cancelled — returning to that same week finds the draft still there.
+    func returnToSearchResults() {
+        guard isSearching else { return }
+        showingSearchResults = true
+    }
+
+    func clearSearch() {
+        searchText = ""
+    }
+
     // MARK: - Week lookups
 
     func note(at week: Int) -> WeekNote? {
@@ -191,6 +274,9 @@ final class AppModel: ObservableObject {
     // MARK: - Selection
 
     func select(week: Int) {
+        // Picking a week — from the grid or from a result — is what leaves the
+        // result list, even when it's the week already selected.
+        showingSearchResults = false
         guard week != selectedWeek else { return }
         cancelEditing()
         selectedWeek = week
@@ -242,6 +328,7 @@ final class AppModel: ObservableObject {
                 if note != nil { count += 1 }
             }
             isEditing = false
+            refreshSearchResults()
             syncDraftToSelection()
             objectWillChange.send()
         } catch {
@@ -260,6 +347,7 @@ final class AppModel: ObservableObject {
                 notesByWeek[currentWeek] = note
                 if wasEmpty { noteCount += 1 }
             }
+            refreshSearchResults()
             if !isEditing { syncDraftToSelection() }
             objectWillChange.send()
         } catch {
@@ -294,6 +382,9 @@ final class AppModel: ObservableObject {
         editingChapterID = nil
         draftTitle = ""
         draftColor = ChapterPalette.defaultColor
+        // Checked on opening, not just on commit: the range is fixed by the
+        // drag, so a doomed draft says so before anything is typed into it.
+        chapterDraftError = overlapRejection(for: chapters + [draftChapter(over: range, id: "draft")])
         popoverOpen = true
     }
 
@@ -305,12 +396,14 @@ final class AppModel: ObservableObject {
         editingChapterID = id
         draftTitle = chapter.title
         draftColor = chapter.color
+        chapterDraftError = nil
         popoverOpen = true
     }
 
     func cancelChapterDraft() {
         popoverOpen = false
         editingChapterID = nil
+        chapterDraftError = nil
         selection = nil
         dragAnchor = nil
     }
@@ -321,22 +414,48 @@ final class AppModel: ObservableObject {
         let start = timeline.monday(of: range.lowerBound)
         let end = timeline.monday(of: range.upperBound)
 
-        if let id = editingChapterID, let index = chapters.firstIndex(where: { $0.id == id }) {
-            chapters[index].title = title.isEmpty ? Chapter.untitled : title
-            chapters[index].color = draftColor
-            chapters[index].start = start
-            chapters[index].end = end
+        var proposed = chapters
+        if let id = editingChapterID, let index = proposed.firstIndex(where: { $0.id == id }) {
+            proposed[index].title = title.isEmpty ? Chapter.untitled : title
+            proposed[index].color = draftColor
+            proposed[index].start = start
+            proposed[index].end = end
         } else {
-            chapters.append(Chapter(
-                id: Chapter.makeID(avoiding: Set(chapters.map(\.id))),
-                start: start,
-                end: end,
-                color: draftColor,
-                title: title.isEmpty ? Chapter.untitled : title
-            ))
+            proposed.append(draftChapter(over: range,
+                                         id: Chapter.makeID(avoiding: Set(chapters.map(\.id)))))
         }
+
+        if let rejection = overlapRejection(for: proposed) {
+            chapterDraftError = rejection
+            return
+        }
+        chapters = proposed
         persistChapters()
         cancelChapterDraft()
+    }
+
+    /// The chapter the current draft would write, over `range`.
+    private func draftChapter(over range: ClosedRange<Int>, id: String) -> Chapter {
+        let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return Chapter(
+            id: id,
+            start: timeline?.monday(of: range.lowerBound) ?? .today(),
+            end: timeline?.monday(of: range.upperBound),
+            color: draftColor,
+            title: title.isEmpty ? Chapter.untitled : title
+        )
+    }
+
+    /// Why a proposed set of chapters can't be saved, or `nil` if it can. Only
+    /// depth is checked: past `maxOverlap` a cell has no legible way to show
+    /// every chapter covering it (README §4).
+    private func overlapRejection(for proposed: [Chapter]) -> String? {
+        guard let timeline else { return nil }
+        let trial = ChapterResolution(chapters: proposed, timeline: timeline,
+                                      openEnd: timeline.monday(of: currentWeek))
+        guard trial.deepestOverlap > ChapterResolution.maxOverlap else { return nil }
+        return "A week can be in at most \(ChapterResolution.maxOverlap) chapters. "
+            + "This range already has that many."
     }
 
     func deleteChapter(id: String) {
@@ -354,6 +473,25 @@ final class AppModel: ObservableObject {
         } catch {
             loadError = error.localizedDescription
         }
+    }
+
+    // MARK: - Toolbar
+
+    /// Whole weeks left in the grid after the one being lived. `nil` until an
+    /// archive is loaded, and zero once the end age is behind you — the grid
+    /// stops at `end_age`, so this counts to that edge, not to a real forecast.
+    var weeksRemaining: Int? {
+        guard let timeline else { return nil }
+        return max(0, timeline.lastWeekIndex - currentWeek)
+    }
+
+    /// `2,847 weeks remaining, more or less. What will you do with the time?`
+    var weeksRemainingLine: String? {
+        guard let remaining = weeksRemaining else { return nil }
+        let count = NumberFormatter.localizedString(
+            from: NSNumber(value: remaining), number: .decimal)
+        let noun = remaining == 1 ? "week" : "weeks"
+        return "\(count) \(noun) remaining, more or less. What will you do with the time?"
     }
 
     // MARK: - Status bar

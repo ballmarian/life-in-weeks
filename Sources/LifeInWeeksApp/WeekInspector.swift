@@ -10,8 +10,13 @@ struct WeekInspector: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let timeline = model.timeline, let week = model.selectedWeek {
-                content(week: week, timeline: timeline)
+            if model.showingSearchResults {
+                SearchResultsList(model: model)
+            } else if let timeline = model.timeline, let week = model.selectedWeek {
+                VStack(spacing: 0) {
+                    if model.isSearching { backToResults }
+                    content(week: week, timeline: timeline)
+                }
             } else {
                 Spacer()
             }
@@ -20,6 +25,29 @@ struct WeekInspector: View {
         .frame(width: 300)
         .background(palette.sidebar)
         .overlay(alignment: .leading) { Hairline(axis: .vertical) }
+    }
+
+    /// Sits above the note whenever a search is live, so an opened match is
+    /// one click from the list it came from.
+    private var backToResults: some View {
+        VStack(spacing: 0) {
+            Button { model.returnToSearchResults() } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "chevron.left").font(.system(size: 10, weight: .semibold))
+                    Text(model.searchResults.count == 1
+                         ? "Back to 1 result"
+                         : "Back to \(model.searchResults.count) results")
+                        .font(Typography.ui(11.5))
+                    Spacer(minLength: 0)
+                }
+                .foregroundColor(palette.accent)
+                .padding(.horizontal, 16)
+                .frame(height: 32)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(HoverRowButtonStyle())
+            Hairline()
+        }
     }
 
     @ViewBuilder
@@ -48,7 +76,7 @@ struct WeekInspector: View {
                 .foregroundColor(palette.quaternary)
                 .padding(.top, 4)
 
-            chapterLine(week: week)
+            chapterList(week: week)
                 .padding(.top, 10)
 
             Hairline().padding(.vertical, 12)
@@ -73,24 +101,32 @@ struct WeekInspector: View {
         return "WEEK \(week + 1) OF \(timeline.weekCount)"
     }
 
+    /// Every chapter the week belongs to, earliest start first — the same order
+    /// the tooltip lists them in, so an overlap reads as the band it sits in
+    /// plus whatever nests inside it.
     @ViewBuilder
-    private func chapterLine(week: Int) -> some View {
-        if let chapter = model.resolution?.hoverChapter(week: week) {
-            HStack(spacing: 7) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color(hex: chapter.color))
-                    .overlay(RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(palette.swatchHairline, lineWidth: 1))
-                    .frame(width: 11, height: 11)
-                Text(chapter.title)
-                    .font(Typography.ui(11.5))
-                    .foregroundColor(palette.secondary)
-                    .lineLimit(1)
-            }
-        } else {
+    private func chapterList(week: Int) -> some View {
+        let chapters = model.resolution?.coveringChapters(week: week) ?? []
+        if chapters.isEmpty {
             Text("No chapter")
                 .font(Typography.ui(11.5))
                 .foregroundColor(palette.placeholder)
+        } else {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(chapters) { chapter in
+                    HStack(spacing: 7) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color(hex: chapter.color))
+                            .overlay(RoundedRectangle(cornerRadius: 3)
+                                .strokeBorder(palette.swatchHairline, lineWidth: 1))
+                            .frame(width: 11, height: 11)
+                        Text(chapter.title)
+                            .font(Typography.ui(11.5))
+                            .foregroundColor(palette.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
         }
     }
 
@@ -152,15 +188,11 @@ struct WeekInspector: View {
                 }
 
             HStack(spacing: 10) {
-                StyledField(placeholder: "🙂", text: $model.draftEmoji,
-                            font: .system(size: 14), alignment: .center)
+                EmojiField(emoji: $model.draftEmoji)
                     .frame(width: 44)
-                    .onChange(of: model.draftEmoji) { value in
-                        // The cell shows one glyph; two characters covers an
-                        // emoji plus a variation selector.
-                        if value.count > 2 { model.draftEmoji = String(value.prefix(2)) }
-                    }
-                Text("Emoji shown in the cell")
+                // The design's caption (README §7), plus the hint that the
+                // field opens the system picker.
+                Text("Emoji shown in the cell · click to pick")
                     .font(Typography.ui(10.5))
                     .foregroundColor(palette.tertiary)
                 Spacer(minLength: 0)

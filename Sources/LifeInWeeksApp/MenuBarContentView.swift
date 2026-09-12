@@ -6,6 +6,7 @@ import SwiftUI
 struct MenuBarContentView: View {
     @ObservedObject var model: AppModel
     let openMap: () -> Void
+    let openSettings: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @State private var quickNote = ""
     @FocusState private var quickNoteFocused: Bool
@@ -13,21 +14,35 @@ struct MenuBarContentView: View {
     var body: some View {
         let palette = Palette.forScheme(colorScheme)
         VStack(alignment: .leading, spacing: 10) {
-            if let timeline = model.timeline {
-                Text(timeline.monday(of: model.currentWeek).mediumDisplay)
-                    .font(Typography.ui(13, .semibold))
-                    .foregroundColor(palette.primary)
-                Text("This week · age \(timeline.age(atWeek: model.currentWeek)) · "
-                     + timeline.monday(of: model.currentWeek).isoWeekLabel)
-                    .font(Typography.mono(10.5))
-                    .foregroundColor(palette.quaternary)
-            } else {
-                Text("Life in Weeks")
-                    .font(Typography.ui(13, .semibold))
-                    .foregroundColor(palette.primary)
-                Text("No archive set up yet.")
-                    .font(Typography.ui(11))
-                    .foregroundColor(palette.tertiary)
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    if let timeline = model.timeline {
+                        Text(timeline.monday(of: model.currentWeek).mediumDisplay)
+                            .font(Typography.ui(13, .semibold))
+                            .foregroundColor(palette.primary)
+                        Text("This week · age \(timeline.age(atWeek: model.currentWeek)) · "
+                             + timeline.monday(of: model.currentWeek).isoWeekLabel)
+                            .font(Typography.mono(10.5))
+                            .foregroundColor(palette.quaternary)
+                    } else {
+                        Text("Life in Weeks")
+                            .font(Typography.ui(13, .semibold))
+                            .foregroundColor(palette.primary)
+                        Text("No archive set up yet.")
+                            .font(Typography.ui(11))
+                            .foregroundColor(palette.tertiary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Button(action: openSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 13))
+                }
+                .buttonStyle(IconButtonStyle())
+                .help("Settings")
+                .accessibilityLabel("Settings")
+                .keyboardShortcut(",", modifiers: .command)
+                .padding(.top, -2)
             }
 
             Hairline()

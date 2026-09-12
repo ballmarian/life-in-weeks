@@ -38,13 +38,4 @@ public enum ZoomLevel: String, Codable, Sendable, CaseIterable {
                             tickFraction: 0.24, showsEmoji: true, labelFontSize: 10)
         }
     }
-
-    /// Toolbar hint text (README §2).
-    public var hint: String {
-        switch self {
-        case .small: return "whole life, one screen"
-        case .medium: return "default — notes and emoji read"
-        case .large: return "emoji-forward, chapters underlined"
-        }
-    }
 }

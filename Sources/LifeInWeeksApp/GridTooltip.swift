@@ -16,17 +16,28 @@ struct GridTooltip: View {
             Text(headline)
                 .font(Typography.ui(11.5, .semibold))
                 .foregroundColor(palette.primary)
+                .lineLimit(1)
             Text(meta)
                 .font(Typography.mono(10.5))
                 .foregroundColor(palette.secondary)
-            if let nested {
+            if !chapters.isEmpty {
                 Rectangle()
                     .fill(palette.tooltipHairline)
                     .frame(height: 1)
                     .padding(.vertical, 2)
-                Text(nested)
-                    .font(Typography.ui(10))
-                    .foregroundColor(palette.secondary)
+                ForEach(chapters) { chapter in
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .fill(Color(hex: chapter.color))
+                            .overlay(RoundedRectangle(cornerRadius: 2.5)
+                                .strokeBorder(palette.swatchHairline, lineWidth: 1))
+                            .frame(width: 9, height: 9)
+                        Text(chapter.title)
+                            .font(Typography.ui(10.5))
+                            .foregroundColor(palette.secondary)
+                            .lineLimit(1)
+                    }
+                }
             }
         }
         .padding(.vertical, 7)
@@ -44,13 +55,10 @@ struct GridTooltip: View {
         .shadow(color: .black.opacity(0.7), radius: 12, y: 8)
     }
 
-    /// A chapter title if the week sits in one, else the note, else why not.
+    /// The note, else why the week has none.
     private var headline: String {
-        if let chapter = model.resolution?.hoverChapter(week: week) {
-            return chapter.title
-        }
         if let note = model.note(at: week), let line = note.firstLine {
-            return [note.emoji, line].compactMap { $0 }.joined(separator: " ")
+            return [note.emoji, Self.elided(line)].compactMap { $0 }.joined(separator: " ")
         }
         if let note = model.note(at: week), let emoji = note.emoji {
             return emoji
@@ -58,18 +66,27 @@ struct GridTooltip: View {
         return model.isFuture(week: week) ? "Not yet lived" : "No note"
     }
 
+    /// The first line of a note is a preview, not the note: past 30 characters
+    /// it's cut and elided, so the tooltip stays one glanceable line whatever
+    /// the week holds. `…` matches how search elides its snippets.
+    private static func elided(_ line: String) -> String {
+        guard line.count > Self.headlineLimit else { return line }
+        let kept = line.prefix(Self.headlineLimit)
+            .reversed().drop { $0.isWhitespace }.reversed()
+        return String(kept) + "…"
+    }
+
+    private static let headlineLimit = 30
+
     /// `2011-06-13 · age 33 · 2011-W24`
     private var meta: String {
         let monday = timeline.monday(of: week)
         return "\(monday.iso) · age \(timeline.age(atWeek: week)) · \(monday.isoWeekLabel)"
     }
 
-    /// Only shown where two or more chapters cover the week — naming the one
-    /// underneath is the point of the reveal.
-    private var nested: String? {
-        guard let resolution = model.resolution,
-              resolution.revealsNestedChapter(week: week),
-              let underneath = resolution.backgroundChapter(week: week) else { return nil }
-        return "Nested chapter — full extent highlighted. Under it: \(underneath.title)"
+    /// Every chapter covering the week, earliest start first — so an overlap
+    /// reads as the band it sits in plus whatever nests inside it.
+    private var chapters: [Chapter] {
+        model.resolution?.coveringChapters(week: week) ?? []
     }
 }

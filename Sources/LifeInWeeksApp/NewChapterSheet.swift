@@ -33,6 +33,13 @@ struct NewChapterSheet: View {
 
             palettePicker
 
+            if let error = model.chapterDraftError {
+                Text(error)
+                    .font(Typography.ui(10.5))
+                    .foregroundColor(Color(hex: "#FF6961"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: 8) {
                 Spacer()
                 Button("Cancel") { model.cancelChapterDraft() }
@@ -47,6 +54,8 @@ struct NewChapterSheet: View {
                 .buttonStyle(FilledButtonStyle(fill: palette.accent, foreground: .white, height: 24))
                 .frame(width: 74)
                 .keyboardShortcut(.defaultAction)
+                .disabled(model.chapterDraftError != nil)
+                .opacity(model.chapterDraftError == nil ? 1 : 0.4)
             }
         }
         .padding(14)

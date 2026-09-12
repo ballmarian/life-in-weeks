@@ -1,7 +1,7 @@
 import LifeInWeeksCore
 import SwiftUI
 
-/// The 50px toolbar: row layout, zoom, the zoom hint, and search (README §2).
+/// The 50px toolbar: row layout, zoom, and search (README §2).
 struct GridToolbar: View {
     @ObservedObject var model: AppModel
     @Environment(\.palette) private var palette
@@ -28,15 +28,22 @@ struct GridToolbar: View {
                 )
             }
 
-            Text(model.zoom.hint)
-                .font(Typography.mono(10.5))
-                .foregroundColor(palette.tertiary)
-                .lineLimit(1)
-
+            // The nudge the whole app is for (PRD §1), centered in the gap
+            // between the controls and search. It truncates rather than
+            // squeezing them at a narrow window width.
             Spacer(minLength: 8)
+            if let line = model.weeksRemainingLine {
+                Text(line)
+                    .font(Typography.ui(11.5))
+                    .foregroundColor(palette.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(-1)
+                Spacer(minLength: 8)
+            }
 
-            // Search is scoped to v1.1 (PRD §6.2); the field is present and
-            // takes text, but nothing filters on it yet.
+            // Typing here searches every note; matches land in the inspector
+            // column (PRD §6.2).
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
@@ -46,6 +53,16 @@ struct GridToolbar: View {
                     .textFieldStyle(.plain)
                     .font(Typography.ui(12))
                     .foregroundColor(palette.primary)
+                    .onSubmit { model.returnToSearchResults() }
+                if model.isSearching {
+                    Button { model.clearSearch() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(palette.placeholder)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear search")
+                }
             }
             .padding(.horizontal, 8)
             .frame(width: 210, height: 26)

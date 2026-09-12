@@ -1,44 +1,107 @@
 # Life in Weeks
 
-A native macOS app that renders your life as a grid of weeks, from birth to age
-90 — one row per year, one cell per week, after Tim Urban's
-[Life in Weeks](https://waitbutwhy.com/2014/05/life-weeks.html). Each week can
-carry a markdown note and an emoji; arbitrary date ranges can be painted as
-colour-coded "chapters" behind the grid. Everything lives in plain, readable
-files on disk: no database, no server, no account. A menu bar extra lets you log
-the current week without opening the map.
+A native macOS app that renders your life as a grid of weeks, from birth to age 90 — one row per year, one cell per week, based on Tim Urban's [Life in Weeks](https://waitbutwhy.com/2014/05/life-weeks.html) article. Each week can carry a markdown note and an emoji; arbitrary date ranges can be painted as colour-coded "chapters" behind the grid. Everything lives in plain, readable files on disk: no database, no server, no account, no analytics. A menu bar extra lets you log the current week without opening the map.
 
 ![The map at default zoom](design-guidance/screenshots/01-grid-default-M-life-year.png)
 
-## Requirements
+This app isn't distributed as a ready-made download — you build it yourself, on your own Mac, from this source code. That sounds intimidating if you've never done it before, but it's about ten minutes of copy-pasting a few commands into an app called Terminal. The steps below assume you've never used Terminal and walk through every click.
 
-- macOS 13.0 or later
-- Swift 5.9 or later — the **Command Line Tools alone are enough**
-  (`xcode-select --install`). Full Xcode is not required; the app is built and
-  bundled by a script rather than an `.xcodeproj`.
+## What you'll need
 
-## Building
+- A Mac running macOS 13 (Ventura) or later.
+- About 15 minutes and an internet connection (to download some free
+  developer tools from Apple, one time only).
+
+You do **not** need to buy anything, sign up for an Apple Developer account, or install the full Xcode application (though it's fine if you already have it).
+
+## Step 1: Get the project files onto your Mac
+
+If someone sent you a link to this project's page (for example on GitHub),
+look for a green **Code** button, click it, then click **Download ZIP**.
+Once it downloads, double-click the ZIP file to unzip it — you'll get a
+folder called something like `life-in-weeks`. Move that folder somewhere
+you'll remember, like your Desktop.
+
+*(If you already know what `git clone` is, feel free to use that instead.)*
+
+## Step 2: Open Terminal
+
+Terminal is a built-in Mac app for typing commands. To open it:
+
+1. Press `Cmd + Space` to open Spotlight search.
+2. Type `Terminal` and press `Return`.
+
+A plain window with a blinking cursor will appear. That's it — that's
+Terminal.
+
+## Step 3: Point Terminal at the project folder
+
+In Terminal, type `cd ` (with a trailing space) — **don't press Return
+yet**. Then, using Finder, drag the `life-in-weeks` folder from Step 1
+straight into the Terminal window. Its full path will appear after `cd `.
+Now press `Return`. Terminal is now "inside" the project folder.
+
+## Step 4: Install Apple's Command Line Tools (one time only)
+
+This project needs Apple's Swift compiler to build. You almost certainly
+already have it if you've ever installed developer tools before; if not,
+type this into Terminal and press `Return`:
 
 ```sh
-./Scripts/build-app.sh release     # → dist/LifeInWeeks.app
+xcode-select --install
 ```
 
-Drag `dist/LifeInWeeks.app` to `/Applications`, or run it where it is. The
-script ad-hoc signs the bundle, which is all a locally built app needs — there
-is no notarization step and no Apple Developer Program membership involved
-(see the distribution note below).
+A window will pop up asking to install the "Command Line Tools" — click
+**Install**, accept the license, and wait for it to finish (a few minutes).
+If Terminal instead says something like "command line tools are already
+installed," that's fine — skip ahead to Step 5.
 
-To run the test suite:
+You do not need to install the full Xcode app from the App Store for this
+project.
+
+## Step 5: Build the app
+
+Back in Terminal (still inside the project folder from Step 3), copy and
+paste this command and press `Return`:
 
 ```sh
-./Scripts/test.sh
+./Scripts/build-app.sh release
 ```
 
-The tests are written against swift-testing. On a machine with only the Command
-Line Tools installed, plain `swift test` compiles SwiftPM's generated runner
-with `canImport(Testing)` false and exits having run nothing, so use the script;
-it adds the one search path that fixes this. With Xcode installed, `swift test`
-works directly.
+You'll see some text scroll by as it compiles — this can take a minute or
+two the first time. When it's done, it will print:
+
+```
+Built dist/LifeInWeeks.app
+```
+
+That's the finished app.
+
+## Step 6: Move it into place and open it
+
+1. In Finder, open the project folder, then open the `dist` folder inside
+   it. You'll see `LifeInWeeks.app`.
+2. Drag `LifeInWeeks.app` into your **Applications** folder (or just leave
+   it in place and double-click it there — either works).
+3. Double-click `LifeInWeeks.app` to open it.
+
+Because this app was built on your own Mac rather than downloaded
+pre-built and signed by Apple, macOS may show a warning the first time you
+open it, saying it's from an "unidentified developer." If that happens:
+**right-click** (or Control-click) `LifeInWeeks.app` and choose **Open**
+from the menu, then click **Open** again in the dialog that appears. You
+only need to do this once — after that, it opens normally with a regular
+double-click.
+
+The app doesn't appear in the Dock or app switcher — it's a menu bar app,
+so look for its icon in the row of icons at the top-right of your screen,
+near the clock.
+
+## Updating later
+
+If you download a newer version of the project files, just repeat Steps 3,
+5, and 6 — you can skip Steps 2 and 4 since Terminal and the Command Line
+Tools are already set up.
 
 ## First launch
 
@@ -87,7 +150,40 @@ by anything that reads markdown.
 - The **menu bar icon** gives you a quick note appended to this week, a jump
   straight into editing it, and a way back to the map.
 
-## Layout
+## If something goes wrong
+
+- **"xcrun: error" or Swift-related errors during build** — reopen Terminal
+  and try Step 4 again; the Command Line Tools may not have finished
+  installing.
+- **The build command says "No such file or directory"** — you're not inside
+  the project folder. Redo Step 3, making sure you drag the folder icon
+  itself (not a file inside it) into Terminal.
+- **macOS still refuses to open the app after right-click → Open** — go to
+   **System Settings → Privacy & Security**, scroll down, and look for a
+   message about `LifeInWeeks.app` being blocked, with an **Open Anyway**
+   button next to it.
+- Still stuck? Re-running `./Scripts/build-app.sh release` from Step 5 is
+  always safe — it rebuilds from scratch and won't touch your saved weeks,
+  which live entirely in the storage folder you chose on first launch.
+
+## For developers
+
+The sections below are for anyone modifying the source code rather than
+just running the app.
+
+### Running the test suite
+
+```sh
+./Scripts/test.sh
+```
+
+The tests are written against swift-testing. On a machine with only the Command
+Line Tools installed, plain `swift test` compiles SwiftPM's generated runner
+with `canImport(Testing)` false and exits having run nothing, so use the script;
+it adds the one search path that fixes this. With Xcode installed, `swift test`
+works directly.
+
+### Layout
 
 - `Sources/LifeInWeeksCore` — pure Swift, no UI framework: week arithmetic, the
   two row groupings, the file format, chapter overlap resolution, and file I/O.

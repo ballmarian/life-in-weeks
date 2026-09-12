@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The toolbar's segmented controls. Built rather than using SwiftUI's `Picker`,
@@ -84,17 +85,92 @@ struct StyledField: View {
     var font: Font = Typography.ui(12.5)
     var height: CGFloat = 26
     var alignment: TextAlignment = .leading
+    /// Set by a caller that needs to know when the field holds focus — the
+    /// emoji field, which opens the Character Viewer on the way in.
+    var focus: FocusState<Bool>.Binding?
     @Environment(\.palette) private var palette
 
     var body: some View {
+        Group {
+            if let focus {
+                field.focused(focus)
+            } else {
+                field
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: height)
+        .background(RoundedRectangle(cornerRadius: 6).fill(palette.fieldFill))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(palette.fieldHairline, lineWidth: 1))
+    }
+
+    private var field: some View {
         TextField("", text: $text, prompt: Text(placeholder).foregroundColor(palette.placeholder))
             .textFieldStyle(.plain)
             .font(font)
             .multilineTextAlignment(alignment)
             .foregroundColor(palette.primary)
-            .padding(.horizontal, 8)
-            .frame(height: height)
-            .background(RoundedRectangle(cornerRadius: 6).fill(palette.fieldFill))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(palette.fieldHairline, lineWidth: 1))
+    }
+}
+
+/// The week editor's one-glyph emoji field.
+///
+/// Clicking (or tabbing) into it pops the system Character Viewer, which
+/// inserts into whatever text field holds focus — so an emoji can be picked
+/// from the standard palette, and still typed or pasted by hand.
+struct EmojiField: View {
+    @Binding var emoji: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        StyledField(placeholder: "🙂", text: $emoji, font: .system(size: 14),
+                    alignment: .center, focus: $focused)
+            .onChange(of: focused) { isFocused in
+                guard isFocused else { return }
+                NSApp.orderFrontCharacterPalette(nil)
+            }
+            .onChange(of: emoji) { value in
+                // One glyph, because that's what a cell draws. `Character` is a
+                // grapheme cluster, so an emoji keeps its variation selector,
+                // skin tone or ZWJ sequence intact — the design's "max 2
+                // characters" (README §7) counting UTF-16 units, not glyphs.
+                //
+                // The last one typed wins, so picking a second emoji over a
+                // full field replaces what was there instead of being dropped.
+                if value.count > 1 { emoji = String(value.suffix(1)) }
+            }
+    }
+}
+
+/// A full-width row that lights up under the cursor, painting edge to edge
+/// rather than inside a rounded well: the inspector's back bar, a search result.
+struct HoverRowButtonStyle: ButtonStyle {
+    @Environment(\.palette) private var palette
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(hovering ? palette.primary.opacity(0.06) : .clear)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .onHover { hovering = $0 }
+    }
+}
+
+/// A borderless square for an SF Symbol action (the menu bar's gear), with the
+/// same hover surface the inspector's note block uses.
+struct IconButtonStyle: ButtonStyle {
+    var size: CGFloat = 24
+    @Environment(\.palette) private var palette
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(hovering ? palette.primary : palette.tertiary)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: 6)
+                .fill(hovering ? palette.primary.opacity(0.08) : .clear))
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
     }
 }

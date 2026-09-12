@@ -11,6 +11,7 @@ struct LifeInWeeksApp: App {
     @Environment(\.openWindow) private var openWindow
 
     static let mapWindowID = "life-in-weeks-map"
+    static let settingsWindowID = "life-in-weeks-settings"
 
     var body: some Scene {
         Window("Life in Weeks", id: LifeInWeeksApp.mapWindowID) {
@@ -25,8 +26,17 @@ struct LifeInWeeksApp: App {
             }
         }
 
+        // A plain `Window` rather than the `Settings` scene: `SettingsLink` is
+        // macOS 14 and PRD §8 pins the target at 13, and an LSUIElement app has
+        // no app menu to reach the settings item from anyway.
+        Window("Life in Weeks Settings", id: LifeInWeeksApp.settingsWindowID) {
+            SettingsView(model: model)
+        }
+        .windowResizability(.contentSize)
+        .commandsRemoved()
+
         MenuBarExtra {
-            MenuBarContentView(model: model, openMap: openMap)
+            MenuBarContentView(model: model, openMap: openMap, openSettings: openSettings)
         } label: {
             // A template SF Symbol, so it tracks the menu bar's appearance.
             Image(systemName: "square.grid.3x3.fill")
@@ -37,6 +47,11 @@ struct LifeInWeeksApp: App {
     private func openMap() {
         NSApp.activate(ignoringOtherApps: true)
         openWindow(id: LifeInWeeksApp.mapWindowID)
+    }
+
+    private func openSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: LifeInWeeksApp.settingsWindowID)
     }
 }
 

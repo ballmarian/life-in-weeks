@@ -24,6 +24,42 @@ private func week(_ iso: String) -> Int {
 @Suite("Chapter overlap resolution")
 struct ChapterResolverTests {
 
+    // MARK: - The four-deep overlap cap
+
+    @Test("Covering chapters come back earliest start first — the order a split cell paints")
+    func coveringChaptersAreInStartOrder() {
+        let outer = chapter("b1", "2012-01-02", "2016-05-30", "College")
+        let middle = chapter("b2", "2014-01-06", "2014-12-29", "Study Abroad")
+        let inner = chapter("b3", "2014-03-03", "2014-04-28", "Thesis")
+        let resolution = resolve([inner, outer, middle])
+
+        #expect(resolution.coveringChapters(week: week("2014-03-10")).map(\.title)
+                == ["College", "Study Abroad", "Thesis"])
+        #expect(resolution.coveringChapters(week: week("2014-07-07")).map(\.title)
+                == ["College", "Study Abroad"])
+        #expect(resolution.coveringChapters(week: week("2020-01-06")).isEmpty)
+    }
+
+    @Test("Overlap depth counts the deepest week, which is what the cap is applied to")
+    func deepestOverlapIsTheDeepestWeek() {
+        let stacked = (1 ... 4).map {
+            chapter("b\($0)", "201\($0)-01-05", "2016-05-30", "Chapter \($0)")
+        }
+        #expect(resolve(stacked).deepestOverlap == 4)
+        #expect(resolve(stacked).deepestOverlap <= ChapterResolution.maxOverlap)
+
+        let fifth = chapter("b5", "2015-06-01", "2015-08-31", "Summer")
+        #expect(resolve(stacked + [fifth]).deepestOverlap == 5)
+    }
+
+    @Test("Chapters that never share a week don't stack")
+    func disjointChaptersDontStack() {
+        let first = chapter("b1", "2012-01-02", "2013-12-30", "School")
+        let second = chapter("b2", "2014-01-06", "2015-12-28", "Work")
+        #expect(resolve([first, second]).deepestOverlap == 1)
+        #expect(resolve([]).deepestOverlap == 0)
+    }
+
     // MARK: - PRD §9.1: earliest start paints, latest start is revealed
 
     @Test("The earlier-starting chapter paints; the later-starting one is revealed on hover")
