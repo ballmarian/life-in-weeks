@@ -17,3 +17,6 @@ dist/
 
 # Design docs (kept local)
 design-guidance/
+
+# Claude Code project instructions (kept local)
+CLAUDE.md
