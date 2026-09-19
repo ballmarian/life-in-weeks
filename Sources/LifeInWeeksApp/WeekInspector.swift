@@ -67,9 +67,13 @@ struct WeekInspector: View {
                         Text(monday.mediumDisplay)
                             .font(Typography.ui(17, .semibold))
                             .foregroundColor(palette.primary)
-                        if let emoji = note?.emoji, !emoji.isEmpty {
-                            Text(emoji).font(.system(size: 19))
-                        }
+                        // Editable in place: outside the editor a pick is
+                        // written straight to the week's file.
+                        EmojiField(emoji: $model.draftEmoji)
+                            .onChange(of: model.draftEmoji) { value in
+                                guard !model.isEditing else { return }
+                                model.saveEmoji(value)
+                            }
                     }
                     .padding(.top, 4)
                 }
@@ -100,11 +104,12 @@ struct WeekInspector: View {
 
             if model.isEditing {
                 editor
+                    .frame(maxHeight: .infinity)
+                    .padding(.bottom, 16)
             } else {
                 noteBody(note: note, week: week)
+                Spacer(minLength: 16)
             }
-
-            Spacer(minLength: 16)
 
             footer(week: week)
         }
@@ -189,7 +194,7 @@ struct WeekInspector: View {
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 5)
-                .frame(height: 190)
+                .frame(minHeight: 120, maxHeight: .infinity)
                 .background(RoundedRectangle(cornerRadius: 7).fill(palette.fieldFill))
                 .overlay(RoundedRectangle(cornerRadius: 7)
                     .strokeBorder(palette.fieldHairline, lineWidth: 1))
@@ -204,25 +209,14 @@ struct WeekInspector: View {
                     }
                 }
 
-            HStack(spacing: 10) {
-                EmojiField(emoji: $model.draftEmoji)
-                    .frame(width: 44)
-                // The design's caption (README §7), plus the hint that the
-                // field opens the system picker.
-                Text("Emoji shown in the cell · click to pick")
-                    .font(Typography.ui(10.5))
-                    .foregroundColor(palette.tertiary)
-                Spacer(minLength: 0)
-            }
-
             HStack(spacing: 8) {
-                Button("Save") { model.saveEdit() }
-                    .buttonStyle(FilledButtonStyle(fill: palette.accent, foreground: .white))
-                    .keyboardShortcut(.return, modifiers: .command)
                 Button("Cancel") { model.cancelEditing() }
                     .buttonStyle(FilledButtonStyle(fill: palette.secondaryButton,
                                                    foreground: palette.primary, weight: .regular))
                     .keyboardShortcut(.cancelAction)
+                Button("Save") { model.saveEdit() }
+                    .buttonStyle(FilledButtonStyle(fill: palette.accent, foreground: .white))
+                    .keyboardShortcut(.return, modifiers: .command)
             }
         }
     }

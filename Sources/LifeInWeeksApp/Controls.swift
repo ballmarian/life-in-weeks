@@ -117,7 +117,9 @@ struct StyledField: View {
     }
 }
 
-/// The week editor's one-glyph emoji field.
+/// The week's one-glyph emoji, sitting beside the date heading: the glyph
+/// itself when the week has one, a dimmed smiley when it hasn't, and an
+/// editable field either way.
 ///
 /// Clicking (or tabbing) into it pops the system Character Viewer, which
 /// inserts into whatever text field holds focus — so an emoji can be picked
@@ -125,10 +127,45 @@ struct StyledField: View {
 struct EmojiField: View {
     @Binding var emoji: String
     @FocusState private var focused: Bool
+    @State private var hovering = false
+    @Environment(\.palette) private var palette
 
     var body: some View {
-        StyledField(placeholder: "🙂", text: $emoji, font: .system(size: 14),
-                    alignment: .center, focus: $focused)
+        TextField("", text: $emoji)
+            .textFieldStyle(.plain)
+            .font(.system(size: 17))
+            .multilineTextAlignment(.center)
+            .frame(width: 26)
+            // An SF Symbol doesn't survive a field's `prompt`, so the dimmed
+            // smiley is drawn over the empty field instead.
+            .overlay {
+                if emoji.isEmpty {
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 15))
+                        .foregroundColor(palette.placeholder)
+                        .allowsHitTesting(false)
+                }
+            }
+            // Clearing the week's emoji, which the picker itself can't do.
+            .overlay(alignment: .topTrailing) {
+                if !emoji.isEmpty, hovering || focused {
+                    Button {
+                        emoji = ""
+                        focused = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(palette.tertiary)
+                            .background(Circle().fill(palette.sidebar))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove this week's emoji")
+                    .offset(x: 5, y: -3)
+                }
+            }
+            .onHover { hovering = $0 }
+            .focused($focused)
+            .help("Click to pick an emoji for this week")
             .onChange(of: focused) { isFocused in
                 guard isFocused else { return }
                 NSApp.orderFrontCharacterPalette(nil)
@@ -141,7 +178,13 @@ struct EmojiField: View {
                 //
                 // The last one typed wins, so picking a second emoji over a
                 // full field replaces what was there instead of being dropped.
-                if value.count > 1 { emoji = String(value.suffix(1)) }
+                if value.count > 1 {
+                    emoji = String(value.suffix(1))
+                    return  // the resulting change lets go of focus below
+                }
+                // One glyph is the whole pick, so the field lets go as soon as
+                // it lands — which is what commits it outside the editor.
+                if !value.isEmpty { focused = false }
             }
     }
 }

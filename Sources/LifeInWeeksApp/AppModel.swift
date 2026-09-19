@@ -312,7 +312,7 @@ final class AppModel: ObservableObject {
     /// Writes the week's file — or deletes it when both fields end up empty,
     /// since a week only has a file while it has content (PRD §5.1).
     func saveEdit() {
-        guard let archive, let week = selectedWeek, let monday = monday(of: week) else { return }
+        guard let week = selectedWeek, let monday = monday(of: week) else { return }
         let emoji = draftEmoji.trimmingCharacters(in: .whitespacesAndNewlines)
         let body = draftNote.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -321,18 +321,42 @@ final class AppModel: ObservableObject {
         note.body = body.isEmpty ? "" : "\n" + body + "\n"
         if note.tags.isEmpty { note.tags = [WeekNote.tag] }
 
+        if persist(note: note, week: week, monday: monday) { isEditing = false }
+    }
+
+    /// Writes just the emoji, leaving the body on disk untouched — the
+    /// inspector header's emoji field edits a week in place, without the
+    /// editor (PRD §5.1).
+    func saveEmoji(_ emoji: String) {
+        guard let week = selectedWeek, let monday = monday(of: week) else { return }
+        let trimmed = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var note = note(at: week) ?? WeekNote()
+        guard (note.emoji ?? "") != trimmed else { return }
+        note.emoji = trimmed.isEmpty ? nil : trimmed
+        if note.tags.isEmpty { note.tags = [WeekNote.tag] }
+
+        _ = persist(note: note, week: week, monday: monday)
+    }
+
+    /// Saves a note to disk and folds the result back into the loaded weeks.
+    /// Returns false when the write failed, so the caller can stay put.
+    @discardableResult
+    private func persist(note: WeekNote, week: Int, monday: CalendarDate) -> Bool {
+        guard let archive else { return false }
         do {
             let saved = try archive.save(note: note, monday: monday)
             if week < notesByWeek.count { notesByWeek[week] = saved }
             noteCount = notesByWeek.reduce(into: 0) { count, note in
                 if note != nil { count += 1 }
             }
-            isEditing = false
             refreshSearchResults()
             syncDraftToSelection()
             objectWillChange.send()
+            return true
         } catch {
             loadError = error.localizedDescription
+            return false
         }
     }
 
