@@ -50,12 +50,16 @@ struct FilledButtonStyle: ButtonStyle {
     let foreground: Color
     var height: CGFloat = 26
     var weight: Font.Weight = .medium
+    /// Full-width by default, as the footer and sheets use it; the inspector's
+    /// header button sizes to its label instead.
+    var expands: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(Typography.ui(12, weight))
             .foregroundColor(foreground)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: expands ? .infinity : nil)
+            .padding(.horizontal, expands ? 0 : 10)
             .frame(height: height)
             .background(RoundedRectangle(cornerRadius: 6).fill(fill))
             .opacity(configuration.isPressed ? 0.75 : 1)

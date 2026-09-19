@@ -56,20 +56,37 @@ struct WeekInspector: View {
         let note = model.note(at: week)
 
         VStack(alignment: .leading, spacing: 0) {
-            Text(kicker(week: week, timeline: timeline))
-                .font(Typography.ui(10))
-                .tracking(0.6)
-                .foregroundColor(palette.tertiary)
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(kicker(week: week, timeline: timeline))
+                        .font(Typography.ui(10))
+                        .tracking(0.6)
+                        .foregroundColor(palette.tertiary)
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(monday.mediumDisplay)
-                    .font(Typography.ui(17, .semibold))
-                    .foregroundColor(palette.primary)
-                if let emoji = note?.emoji, !emoji.isEmpty {
-                    Text(emoji).font(.system(size: 19))
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(monday.mediumDisplay)
+                            .font(Typography.ui(17, .semibold))
+                            .foregroundColor(palette.primary)
+                        if let emoji = note?.emoji, !emoji.isEmpty {
+                            Text(emoji).font(.system(size: 19))
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+
+                Spacer(minLength: 8)
+
+                if !model.isEditing {
+                    Button("Edit week") {
+                        model.beginEditing()
+                        noteFocused = true
+                    }
+                    .buttonStyle(FilledButtonStyle(fill: palette.accent, foreground: .white,
+                                                   expands: false))
+                    .fixedSize()
+                    .padding(.top, 2)
                 }
             }
-            .padding(.top, 4)
 
             Text("age \(timeline.age(atWeek: week)) · \(monday.isoWeekLabel) · Mon–Sun")
                 .font(Typography.mono(11))
@@ -218,20 +235,10 @@ struct WeekInspector: View {
                 .font(Typography.mono(10.5))
                 .foregroundColor(palette.quaternary)
                 .padding(.top, 6)
-            Text("click the note to edit")
-                .font(Typography.ui(10))
-                .foregroundColor(palette.tertiary)
-            HStack(spacing: 8) {
-                Button("Edit week") {
-                    model.beginEditing()
-                    noteFocused = true
-                }
-                .buttonStyle(FilledButtonStyle(fill: palette.accent, foreground: .white))
-                Button("Reveal in Finder") { model.revealInFinder(week: week) }
-                    .buttonStyle(FilledButtonStyle(fill: palette.secondaryButton,
-                                                   foreground: palette.primary, weight: .regular))
-            }
-            .padding(.top, 2)
+            Button("Reveal in Finder") { model.revealInFinder(week: week) }
+                .buttonStyle(FilledButtonStyle(fill: palette.secondaryButton,
+                                               foreground: palette.primary, weight: .regular))
+                .padding(.top, 2)
         }
     }
 
