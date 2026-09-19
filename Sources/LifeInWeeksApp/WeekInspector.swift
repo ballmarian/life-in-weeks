@@ -70,11 +70,10 @@ struct WeekInspector: View {
                             .foregroundColor(palette.primary)
                         // Editable in place: outside the editor a pick is
                         // written straight to the week's file.
-                        EmojiField(emoji: $model.draftEmoji)
-                            .onChange(of: model.draftEmoji) { value in
-                                guard !model.isEditing else { return }
-                                model.saveEmoji(value)
-                            }
+                        EmojiField(emoji: model.draftEmoji) { picked in
+                            model.draftEmoji = picked
+                            if !model.isEditing { model.saveEmoji(picked) }
+                        }
                     }
                     .padding(.top, 4)
                 }

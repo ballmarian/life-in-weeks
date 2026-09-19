@@ -124,14 +124,24 @@ struct StyledField: View {
 /// Clicking (or tabbing) into it pops the system Character Viewer, which
 /// inserts into whatever text field holds focus — so an emoji can be picked
 /// from the standard palette, and still typed or pasted by hand.
+///
+/// The field empties itself on the way in and reports the first glyph that
+/// lands, rather than editing the week's value in place: a pick always
+/// replaces what was there, wherever the caret happened to sit, and the field
+/// never has to talk a live editor out of a second glyph.
 struct EmojiField: View {
-    @Binding var emoji: String
+    /// The week's emoji as it stands. The field never writes to it; it hands
+    /// a pick to `onPick` and waits to be given the new value back.
+    let emoji: String
+    let onPick: (String) -> Void
+
+    @State private var text = ""
     @FocusState private var focused: Bool
     @State private var hovering = false
     @Environment(\.palette) private var palette
 
     var body: some View {
-        TextField("", text: $emoji)
+        TextField("", text: $text)
             .textFieldStyle(.plain)
             .font(.system(size: 17))
             .multilineTextAlignment(.center)
@@ -139,7 +149,7 @@ struct EmojiField: View {
             // An SF Symbol doesn't survive a field's `prompt`, so the dimmed
             // smiley is drawn over the empty field instead.
             .overlay {
-                if emoji.isEmpty {
+                if text.isEmpty {
                     Image(systemName: "face.smiling")
                         .font(.system(size: 15))
                         .foregroundColor(palette.placeholder)
@@ -150,8 +160,8 @@ struct EmojiField: View {
             .overlay(alignment: .topTrailing) {
                 if !emoji.isEmpty, hovering || focused {
                     Button {
-                        emoji = ""
                         focused = false
+                        onPick("")
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 11))
@@ -166,25 +176,29 @@ struct EmojiField: View {
             .onHover { hovering = $0 }
             .focused($focused)
             .help("Click to pick an emoji for this week")
+            .onAppear { text = emoji }
+            .onChange(of: emoji) { text = $0 }
             .onChange(of: focused) { isFocused in
-                guard isFocused else { return }
-                NSApp.orderFrontCharacterPalette(nil)
-            }
-            .onChange(of: emoji) { value in
-                // One glyph, because that's what a cell draws. `Character` is a
-                // grapheme cluster, so an emoji keeps its variation selector,
-                // skin tone or ZWJ sequence intact — the design's "max 2
-                // characters" (README §7) counting UTF-16 units, not glyphs.
-                //
-                // The last one typed wins, so picking a second emoji over a
-                // full field replaces what was there instead of being dropped.
-                if value.count > 1 {
-                    emoji = String(value.suffix(1))
-                    return  // the resulting change lets go of focus below
+                if isFocused {
+                    // Empty on the way in, so whatever is picked stands alone
+                    // and the placeholder shows what the field is waiting for.
+                    text = ""
+                    NSApp.orderFrontCharacterPalette(nil)
+                } else {
+                    // Left without picking: the week keeps what it had.
+                    text = emoji
                 }
-                // One glyph is the whole pick, so the field lets go as soon as
-                // it lands — which is what commits it outside the editor.
-                if !value.isEmpty { focused = false }
+            }
+            .onChange(of: text) { value in
+                // `Character` is a grapheme cluster, so one of them keeps an
+                // emoji's variation selector, skin tone or ZWJ sequence intact
+                // (README §7's "max 2 characters" counts UTF-16 units).
+                guard focused, let glyph = value.first else { return }
+                text = String(glyph)
+                // Reported before focus goes, so leaving the field restores
+                // the week's new emoji rather than briefly the old one.
+                onPick(text)
+                focused = false
             }
     }
 }
