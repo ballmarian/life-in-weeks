@@ -64,14 +64,30 @@ struct ChaptersSidebar: View {
             } else {
                 ScrollView {
                     VStack(spacing: 1) {
-                        // Newest first: the chapters you're living now come top.
-                        ForEach(model.chapters.reversed()) { chapter in
+                        // Chronological, whatever order blocks.yaml holds them
+                        // in: the list reads top to bottom like the grid does.
+                        ForEach(chronological) { chapter in
                             row(chapter)
                         }
                     }
                     .padding(.horizontal, 8)
                     .padding(.bottom, 12)
                 }
+            }
+        }
+    }
+
+    /// Oldest start first, and among chapters that start together the one that
+    /// ends first — so a short chapter nested in a long one reads as inside it.
+    /// An ongoing chapter sorts last of its start, since it runs to now.
+    private var chronological: [Chapter] {
+        model.chapters.sorted { lhs, rhs in
+            if lhs.startMonday != rhs.startMonday { return lhs.startMonday < rhs.startMonday }
+            switch (lhs.endMonday, rhs.endMonday) {
+            case let (left?, right?): return left < right
+            case (nil, _?): return false
+            case (_?, nil): return true
+            case (nil, nil): return lhs.title < rhs.title
             }
         }
     }
