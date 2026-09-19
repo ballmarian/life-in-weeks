@@ -192,6 +192,14 @@ public struct Archive {
         return note
     }
 
+    /// Removes a week's file outright, note and all. Does nothing when the
+    /// week has no file — the inspector's Delete week (PRD §5.1).
+    public func deleteNote(monday: CalendarDate) throws {
+        let url = paths.weekURL(monday: monday)
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        try fileManager.removeItem(at: url)
+    }
+
     /// Appends a timestamped line to a week's file, creating it if needed —
     /// the menu bar's quick note (PRD §6.4).
     @discardableResult

@@ -339,6 +339,25 @@ final class AppModel: ObservableObject {
         _ = persist(note: note, week: week, monday: monday)
     }
 
+    /// Throws away a week's file — its note, emoji and anything else it
+    /// holds. The inspector only offers this for a week that has one.
+    func deleteWeek(_ week: Int) {
+        guard let archive, let monday = monday(of: week) else { return }
+        do {
+            try archive.deleteNote(monday: monday)
+            if week < notesByWeek.count, notesByWeek[week] != nil {
+                notesByWeek[week] = nil
+                noteCount = max(0, noteCount - 1)
+            }
+            isEditing = false
+            refreshSearchResults()
+            syncDraftToSelection()
+            objectWillChange.send()
+        } catch {
+            loadError = error.localizedDescription
+        }
+    }
+
     /// Saves a note to disk and folds the result back into the loaded weeks.
     /// Returns false when the write failed, so the caller can stay put.
     @discardableResult

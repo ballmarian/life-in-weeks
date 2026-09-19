@@ -7,6 +7,7 @@ struct WeekInspector: View {
     @ObservedObject var model: AppModel
     @Environment(\.palette) private var palette
     @FocusState private var noteFocused: Bool
+    @State private var confirmingDelete = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -233,6 +234,20 @@ struct WeekInspector: View {
                 .buttonStyle(FilledButtonStyle(fill: palette.secondaryButton,
                                                foreground: palette.primary, weight: .regular))
                 .padding(.top, 2)
+
+            // Only a week that has a file has anything to delete.
+            if model.note(at: week) != nil {
+                Button("Delete Week") { confirmingDelete = true }
+                    .buttonStyle(FilledButtonStyle(fill: palette.secondaryButton,
+                                                   foreground: .red, weight: .regular))
+            }
+        }
+        .alert("Delete this week?", isPresented: $confirmingDelete) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete Week", role: .destructive) { model.deleteWeek(week) }
+        } message: {
+            Text("The week's file is removed from disk. Its note, emoji and "
+                 + "anything else it holds are lost, and this can't be undone.")
         }
     }
 

@@ -47,15 +47,35 @@ struct MenuBarContentView: View {
 
             Hairline()
 
-            // Quick note: one line, appended to this week's file with a
-            // timestamp, creating it if needed.
-            HStack(spacing: 8) {
-                StyledField(placeholder: "Quick note…", text: $quickNote)
+            // Quick note: a few lines, appended to this week's file with a
+            // timestamp, creating it if needed. Return breaks a line, so
+            // Cmd+Return is what sends it.
+            VStack(spacing: 8) {
+                TextEditor(text: $quickNote)
                     .focused($quickNoteFocused)
-                    .onSubmit(submitQuickNote)
+                    .font(Typography.ui(12.5))
+                    .lineSpacing(12.5 * 0.55)
+                    .foregroundColor(palette.primary)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5)
+                    .frame(height: 5 * 12.5 * 1.55 + 10)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(palette.fieldFill))
+                    .overlay(RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(palette.fieldHairline, lineWidth: 1))
+                    .overlay(alignment: .topLeading) {
+                        if quickNote.isEmpty {
+                            Text("Quick note…")
+                                .font(Typography.ui(12.5))
+                                .foregroundColor(palette.placeholder)
+                                .padding(.horizontal, 11)
+                                .padding(.vertical, 10)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 Button("Add", action: submitQuickNote)
                     .buttonStyle(FilledButtonStyle(fill: palette.accent, foreground: .white))
-                    .frame(width: 52)
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!model.hasStorageRoot)
             }
 
