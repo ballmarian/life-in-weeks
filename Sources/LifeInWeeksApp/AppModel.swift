@@ -266,9 +266,16 @@ final class AppModel: ObservableObject {
     func isFuture(week: Int) -> Bool { week > currentWeek }
 
     /// `weeks/2011-06-13.md`
-    func relativePath(of week: Int) -> String? {
+    /// `2011-06-13.md`, and the whole path behind it — the inspector footer
+    /// names the file and keeps the folder in the icon's tooltip.
+    func fileName(of week: Int) -> String? {
         guard let archive, let monday = monday(of: week) else { return nil }
-        return archive.paths.relativeWeekPath(monday: monday)
+        return archive.paths.weekFileName(monday: monday)
+    }
+
+    func fullPath(of week: Int) -> String? {
+        guard let archive, let monday = monday(of: week) else { return nil }
+        return archive.paths.displayWeekPath(monday: monday)
     }
 
     // MARK: - Selection

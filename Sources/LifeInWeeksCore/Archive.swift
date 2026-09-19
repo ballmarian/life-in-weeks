@@ -27,14 +27,29 @@ public struct ArchivePaths: Equatable, Sendable {
         weeksURL.appendingPathComponent("\(monday.iso).md")
     }
 
-    /// `weeks/2011-06-13.md` — what the inspector footer shows.
+    /// `weeks/2011-06-13.md`.
     public func relativeWeekPath(monday: CalendarDate) -> String {
         "\(ArchivePaths.weeksFolderName)/\(monday.iso).md"
     }
 
+    /// `2011-06-13.md` — the inspector footer's filename, the folder it sits
+    /// in being the icon beside it.
+    public func weekFileName(monday: CalendarDate) -> String {
+        "\(monday.iso).md"
+    }
+
+    /// `~/Vault/LifeInWeeks/weeks/2011-06-13.md` — the whole path, for the
+    /// footer icon's tooltip.
+    public func displayWeekPath(monday: CalendarDate) -> String {
+        ArchivePaths.abbreviatingHome(weekURL(monday: monday).path)
+    }
+
     /// `~/Vault/LifeInWeeks/weeks` — the status bar's left half.
     public var displayWeeksPath: String {
-        let path = weeksURL.path
+        ArchivePaths.abbreviatingHome(weeksURL.path)
+    }
+
+    private static func abbreviatingHome(_ path: String) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
     }

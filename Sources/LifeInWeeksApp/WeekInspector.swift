@@ -8,6 +8,8 @@ struct WeekInspector: View {
     @Environment(\.palette) private var palette
     @FocusState private var noteFocused: Bool
     @State private var confirmingDelete = false
+    @State private var hoveringPath = false
+    @State private var pathTooltipHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -225,10 +227,40 @@ struct WeekInspector: View {
     private func footer(week: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Hairline()
-            Text(model.relativePath(of: week) ?? "")
-                .font(Typography.mono(10.5))
-                .foregroundColor(palette.quaternary)
-                .padding(.top, 6)
+            // The folder the file sits in is the icon; hovering it names the
+            // whole path, so the line stays short.
+            HStack(spacing: 5) {
+                Image(systemName: "folder")
+                    .font(.system(size: 12))
+                Text("/\(model.fileName(of: week) ?? "")")
+                    .font(Typography.mono(12))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .foregroundColor(palette.quaternary)
+            // One target across icon and name, so the path shows from anywhere
+            // on the line.
+            .contentShape(Rectangle())
+            .onHover { hoveringPath = $0 }
+            // Drawn rather than `.help()`, which waits out the system delay —
+            // this follows the cursor in at once, like the grid's tooltip.
+            .overlay(alignment: .topLeading) {
+                if hoveringPath, let path = model.fullPath(of: week) {
+                    pathTooltip(path)
+                        // Measured rather than guessed, since a deep path
+                        // wraps: the tooltip clears the line whatever its
+                        // height.
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(key: TooltipHeightKey.self,
+                                                   value: proxy.size.height)
+                        })
+                        .offset(y: -(pathTooltipHeight + 6))
+                        .allowsHitTesting(false)
+                }
+            }
+            .onPreferenceChange(TooltipHeightKey.self) { pathTooltipHeight = $0 }
+            .zIndex(1)
+            .padding(.top, 6)
             Button("Reveal in Finder") { model.revealInFinder(week: week) }
                 .buttonStyle(FilledButtonStyle(fill: palette.secondaryButton,
                                                foreground: palette.primary, weight: .regular))
@@ -248,6 +280,27 @@ struct WeekInspector: View {
             Text("The week's file is removed from disk. Its note, emoji and "
                  + "anything else it holds are lost, and this can't be undone.")
         }
+    }
+
+    /// The grid tooltip's chrome, around the week file's whole path.
+    private func pathTooltip(_ path: String) -> some View {
+        Text(path)
+            .font(Typography.mono(10.5))
+            .foregroundColor(palette.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 9)
+            // The whole width the column's padding leaves, so a path wraps as
+            // little as it can.
+            .frame(width: 268, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(palette.tooltipFill)
+                    .overlay(RoundedRectangle(cornerRadius: 7)
+                        .strokeBorder(palette.tooltipHairline, lineWidth: 1))
+            )
+            .shadow(color: .black.opacity(0.7), radius: 12, y: 8)
+            .padding(.bottom, 5)
     }
 
     private var legend: some View {
@@ -299,6 +352,15 @@ struct WeekInspector: View {
                 .foregroundColor(palette.tertiary)
                 .lineLimit(1)
         }
+    }
+}
+
+/// Carries the path tooltip's measured height back out, so it can be lifted
+/// clear of the line it belongs to.
+private struct TooltipHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
