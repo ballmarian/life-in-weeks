@@ -16,6 +16,10 @@ struct LifeInWeeksApp: App {
     var body: some Scene {
         Window("Life in Weeks", id: LifeInWeeksApp.mapWindowID) {
             MainWindowView(model: model)
+                .onAppear { model.refreshToday() }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    model.refreshToday()
+                }
         }
         .defaultSize(width: 1400, height: 813)
         .commands {
@@ -37,6 +41,7 @@ struct LifeInWeeksApp: App {
 
         MenuBarExtra {
             MenuBarContentView(model: model, openMap: openMap, openSettings: openSettings)
+                .onAppear { model.refreshToday() }
         } label: {
             // A template SF Symbol, so it tracks the menu bar's appearance.
             Image(systemName: "square.grid.3x3.fill")

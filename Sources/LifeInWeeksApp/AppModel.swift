@@ -95,6 +95,12 @@ final class AppModel: ObservableObject {
         if let root = Preferences.storageRoot {
             open(root: root)
         }
+        // Midnight rollover and wake from sleep both leave `today` stale.
+        let refresh: (Notification) -> Void = { [weak self] _ in
+            Task { @MainActor in self?.refreshToday() }
+        }
+        NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main, using: refresh)
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main, using: refresh)
     }
 
     /// Points the app at a storage root, creating the layout if it's new.
@@ -169,6 +175,18 @@ final class AppModel: ObservableObject {
         } catch {
             loadError = error.localizedDescription
         }
+    }
+
+    /// Re-derives today's date and the current week. The model outlives many
+    /// days in a menu bar app, so this runs whenever the UI comes into view
+    /// rather than only on `reload()`.
+    func refreshToday() {
+        guard let timeline else { return }
+        let now = CalendarDate.today()
+        guard now != today else { return }
+        today = now
+        currentWeek = timeline.clampedWeekIndex(containing: now)
+        rebuildResolution()
     }
 
     private func startWatching() {
