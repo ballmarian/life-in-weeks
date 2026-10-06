@@ -56,5 +56,11 @@ let package = Package(
             name: "LifeInWeeksApp",
             dependencies: ["LifeInWeeksCore"]
         ),
+        .testTarget(
+            name: "LifeInWeeksAppTests",
+            dependencies: ["LifeInWeeksApp", "LifeInWeeksCore"],
+            swiftSettings: testSwiftSettings,
+            linkerSettings: testLinkerSettings
+        ),
     ]
 )

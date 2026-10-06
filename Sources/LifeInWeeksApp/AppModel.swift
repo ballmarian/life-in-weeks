@@ -28,7 +28,7 @@ final class AppModel: ObservableObject {
 
     @Published private(set) var layout: RowLayout?
     @Published private(set) var resolution: ChapterResolution?
-    @Published private(set) var today: CalendarDate = .today()
+    @Published private(set) var today: CalendarDate
     @Published private(set) var currentWeek: Int = 0
 
     // MARK: - View state
@@ -86,13 +86,17 @@ final class AppModel: ObservableObject {
     @Published var chapterDraftError: String?
 
     private var watcher: FileWatcher?
+    /// Where "today" comes from; tests substitute a clock they can advance.
+    private let clock: () -> CalendarDate
 
     // MARK: - Lifecycle
 
     var hasStorageRoot: Bool { archive != nil }
 
-    init() {
-        if let root = Preferences.storageRoot {
+    init(root: URL? = Preferences.storageRoot, clock: @escaping () -> CalendarDate = { .today() }) {
+        self.clock = clock
+        today = clock()
+        if let root {
             open(root: root)
         }
         // Midnight rollover and wake from sleep both leave `today` stale.
@@ -159,7 +163,7 @@ final class AppModel: ObservableObject {
 
             let timeline = Timeline(config: snapshot.config)
             self.timeline = timeline
-            today = .today()
+            today = clock()
             currentWeek = timeline.clampedWeekIndex(containing: today)
 
             indexNotes(snapshot.notes, timeline: timeline)
@@ -182,7 +186,7 @@ final class AppModel: ObservableObject {
     /// rather than only on `reload()`.
     func refreshToday() {
         guard let timeline else { return }
-        let now = CalendarDate.today()
+        let now = clock()
         guard now != today else { return }
         today = now
         currentWeek = timeline.clampedWeekIndex(containing: now)
